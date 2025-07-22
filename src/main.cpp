@@ -52,15 +52,11 @@ void setup() {
 
   Serial.println("\nI2C Scanner");
 
-  
-
   if (mpu.testConnection()) {
     Serial.println("MPU6050 erfolgreich verbunden!");
   } else {
     Serial.println("Fehler beim Verbinden mit MPU6050.");
   }
-
-  
 }
 
 
