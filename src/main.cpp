@@ -3,7 +3,8 @@
 #include <MPU6050.h>
 #include <math.h>
 
-MPU6050 mpu;
+MPU6050 mpu1(0x68);
+MPU6050 mpu2(0x69);
 
 // factor for scaling to m/s^2
 const float ACC_SCALE = 9.81 / 16384.0;
@@ -47,13 +48,21 @@ float calc_dist(float accx, float accy, float accz, unsigned int dt){
 void setup() {
   Serial.begin(115200);
   Wire.begin(21, 22); // ESP32: SDA=21, SCL=22
-  mpu.initialize();
+  
+  mpu1.initialize();
+  mpu2.initialize();
 
 
   Serial.println("\nI2C Scanner");
 
-  if (mpu.testConnection()) {
-    Serial.println("MPU6050 erfolgreich verbunden!");
+  if (mpu1.testConnection()) {
+    Serial.println("MPU1 erfolgreich verbunden!");
+  } else {
+    Serial.println("Fehler beim Verbinden mit MPU6050.");
+  }
+
+  if (mpu2.testConnection()) {
+    Serial.println("MPU1 erfolgreich verbunden!");
   } else {
     Serial.println("Fehler beim Verbinden mit MPU6050.");
   }
@@ -62,11 +71,12 @@ void setup() {
 
 void loop() {
   
-  int16_t ax, ay, az;
-  int16_t gx, gy, gz;
+  int16_t ax1, ay1, az1;
+  int16_t ax2, ay2, az2;
 
   //get sensor data
-  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+  mpu1.getAcceleration(&ax1, &ay1, &az1);
+  mpu2.getAcceleration(&ax2, &ay2, &az2);
 
   //get time
   t = micros();
@@ -74,21 +84,31 @@ void loop() {
   last_time = t;
 
   //acceleration in m/s^2
-  float accx = ax * ACC_SCALE;
-  float accy = ay * ACC_SCALE;
-  float accz = az * ACC_SCALE;
+  float accx1 = ax1 * ACC_SCALE;
+  float accy1 = ay1 * ACC_SCALE;
+  float accz1 = az1 * ACC_SCALE;
 
+  float accx2 = ax2 * ACC_SCALE;
+  float accy2 = ay2 * ACC_SCALE;
+  float accz2 = az2 * ACC_SCALE;
+
+  //erdbeschleunigung muss rausgerechnet werden
+
+  //entweder über konstanten wert und oder durch init
+
+  //relative accelaration
+  float accx = accx1 - accx2;
+  float accy = accy1 - accy2;
+  float accz = accz1 - accz2;
   
+  /*
   //print sensor data
-  Serial.print("Beschleunigung X: "); Serial.print(accx);
-  Serial.print(" | Y: "); Serial.print(accy);
-  Serial.print(" | Z: "); Serial.println(accz);
-  
+  Serial.print("Beschleunigung X: "); Serial.print(accx1);
+  Serial.print(" | Y: "); Serial.print(accy1);
+  Serial.print(" | Z: "); Serial.println(accz1);
+  */
 
   //calculating distance
-  Serial.print("dt");
-  Serial.print(dt);
-  Serial.print("\n");
 
   dist = calc_dist(accx, accy, accz, dt);
   Serial.print("Distance:");
