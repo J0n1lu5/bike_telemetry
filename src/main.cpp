@@ -13,6 +13,9 @@ MPU6050 mpu2(0x69);
 #define SD_MISO 19     // VSPI_MISO
 #define SD_MOSI 23     // VSPI_MOSI
 
+#define Start_switch 26
+#define Status_Led 25
+
 // factor for scaling to m/s^2
 const float ACC_SCALE = 9.81 / 16384.0;
 
@@ -52,6 +55,11 @@ float calc_dist(float accx, float accy, float accz, unsigned int dt, float basel
   return distance;
 }
 
+//variables
+  int16_t ax1, ay1, az1;
+  int16_t ax2, ay2, az2;
+  float baseline[3] = {0};
+  bool enabled = false;
 
 void setup() {
   Serial.begin(115200);
@@ -60,27 +68,28 @@ void setup() {
   //MPU setup
   Wire.begin(21, 22); // ESP32: SDA=21, SCL=22
   
+  delay(200);
+
   mpu1.initialize();
   mpu2.initialize();
 
+  delay(500);
 
   Serial.println("\nI2C Scanner");
 
-  if (mpu1.testConnection()) {
-    Serial.println("MPU1 erfolgreich verbunden!");
-  } else {
-    Serial.println("Fehler beim Verbinden mit MPU6050.");
+  for (byte address = 1; address < 127; address++) {
+    Wire.beginTransmission(address);
+    if (Wire.endTransmission() == 0) {
+      Serial.print("I2C device found at 0x");
+      Serial.println(address, HEX);
+      delay(5);
+    }
   }
-
-  if (mpu2.testConnection()) {
-    Serial.println("MPU1 erfolgreich verbunden!");
-  } else {
-    Serial.println("Fehler beim Verbinden mit MPU6050.");
-  }
-
 
   //SD card setup
   SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+  //pinMode(SD_CS, OUTPUT);
+  //digitalWrite(SD_CS, HIGH);
 
   if (!SD.begin(SD_CS)) {
     Serial.println("SD-Karte nicht gefunden!");
@@ -95,56 +104,70 @@ void setup() {
   }
   
 
-  
+  //anschalten
+  pinMode(Start_switch, INPUT);
+  pinMode(Status_Led,OUTPUT);
 
-  pinMode(13, INPUT_PULLUP);
 }
 
 
 void loop() {
   
-  int16_t ax1, ay1, az1;
-  int16_t ax2, ay2, az2;
-  float baseline[3] = {0};
+  bool help = true;
 
-  //get sensor data
-  mpu1.getAcceleration(&ax1, &ay1, &az1);
-  mpu2.getAcceleration(&ax2, &ay2, &az2);
+  if(digitalRead(Start_switch)==HIGH){
+    digitalWrite(Status_Led, HIGH);
+    if (enabled==false){
+      
+      Serial.println("Messung gestartet");
+      enabled = true;
+    }
 
-  //get time
-  t = micros();
-  
-//acceleration in m/s^2
-  float accx1 = ax1 * ACC_SCALE;
-  float accy1 = ay1 * ACC_SCALE;
-  float accz1 = az1 * ACC_SCALE;
+    //get sensor data
+    mpu1.getAcceleration(&ax1, &ay1, &az1);
+    mpu2.getAcceleration(&ax2, &ay2, &az2);
 
-  float accx2 = ax2 * ACC_SCALE;
-  float accy2 = ay2 * ACC_SCALE;
-  float accz2 = az2 * ACC_SCALE;
+    //get time
+    t = micros();
+    
+  //acceleration in m/s^2
+    float accx1 = ax1 * ACC_SCALE;
+    float accy1 = ay1 * ACC_SCALE;
+    float accz1 = az1 * ACC_SCALE;
+
+    float accx2 = ax2 * ACC_SCALE;
+    float accy2 = ay2 * ACC_SCALE;
+    float accz2 = az2 * ACC_SCALE;
 
 
-  String line;
-    line.reserve(128);
-    line += String(t);
-    line += ",";
-    line += String(accx1,5); 
-    line += ",";
-    line += String(accy1,5); 
-    line += ",";
-    line += String(accz1,5); 
-    line += ",";
-    line += String(accx2,5); 
-    line += ",";
-    line += String(accy2,5); 
-    line += ",";
-    line += String(accz2,5); 
+    String line;
+      line.reserve(128);
+      line += String(t);
+      line += ",";
+      line += String(accx1,5); 
+      line += ",";
+      line += String(accy1,5); 
+      line += ",";
+      line += String(accz1,5); 
+      line += ",";
+      line += String(accx2,5); 
+      line += ",";
+      line += String(accy2,5); 
+      line += ",";
+      line += String(accz2,5); 
 
-  File Data = SD.open("/Data", FILE_APPEND);
-  Data.println(line);
-  Data.close();
-  
-  
+    File Data = SD.open("/Data.csv", FILE_APPEND);
+    Data.println(line);
+    Data.close();
+  }
+  else {
+    if (enabled==true){
+      Serial.println("Messung beendet");
+      enabled = false;
+    }
+    digitalWrite(Status_Led, LOW);
+  }
+
   /*
   dt = t - last_time;
   last_time = t;
