@@ -24,6 +24,14 @@ unsigned int  t = 0;
 unsigned int  last_time = 0;
 unsigned int  dt = 0;  
 
+//variables
+  int16_t ax1, ay1, az1;
+  int16_t ax2, ay2, az2;
+  float baseline[3] = {0};
+  bool enabled = false;
+  bool measuring = false;
+  bool stateChange = false;
+
 // velocity
 float dist = 0;
 
@@ -55,11 +63,24 @@ float calc_dist(float accx, float accy, float accz, unsigned int dt, float basel
   return distance;
 }
 
-//variables
-  int16_t ax1, ay1, az1;
-  int16_t ax2, ay2, az2;
-  float baseline[3] = {0};
-  bool enabled = false;
+static void handleToggleButton() {
+  
+  if (digitalRead(Start_switch) == LOW){
+   measuring = !measuring;
+   stateChange = true;
+  delay(500);
+  }
+  
+      if (measuring && stateChange) {
+        Serial.println("Messung läuft");
+        digitalWrite(Status_Led, HIGH);
+      } if(!measuring && stateChange) {
+        Serial.println("Messung beendet");
+        digitalWrite(Status_Led, LOW);
+      }
+    stateChange = false;
+    }
+   
 
 void setup() {
   Serial.begin(115200);
@@ -105,7 +126,7 @@ void setup() {
   
 
   //anschalten
-  pinMode(Start_switch, INPUT);
+  pinMode(Start_switch, INPUT_PULLUP);
   pinMode(Status_Led,OUTPUT);
 
 }
@@ -113,60 +134,51 @@ void setup() {
 
 void loop() {
   
-  bool help = true;
+  handleToggleButton();
 
-  if(digitalRead(Start_switch)==HIGH){
-    digitalWrite(Status_Led, HIGH);
-    if (enabled==false){
-      
-      Serial.println("Messung gestartet");
-      enabled = true;
-    }
-
-    //get sensor data
-    mpu1.getAcceleration(&ax1, &ay1, &az1);
-    mpu2.getAcceleration(&ax2, &ay2, &az2);
-
-    //get time
-    t = micros();
-    
-  //acceleration in m/s^2
-    float accx1 = ax1 * ACC_SCALE;
-    float accy1 = ay1 * ACC_SCALE;
-    float accz1 = az1 * ACC_SCALE;
-
-    float accx2 = ax2 * ACC_SCALE;
-    float accy2 = ay2 * ACC_SCALE;
-    float accz2 = az2 * ACC_SCALE;
-
-
-    String line;
-      line.reserve(128);
-      line += String(t);
-      line += ",";
-      line += String(accx1,5); 
-      line += ",";
-      line += String(accy1,5); 
-      line += ",";
-      line += String(accz1,5); 
-      line += ",";
-      line += String(accx2,5); 
-      line += ",";
-      line += String(accy2,5); 
-      line += ",";
-      line += String(accz2,5); 
-
-    File Data = SD.open("/Data.csv", FILE_APPEND);
-    Data.println(line);
-    Data.close();
+  if (!measuring) {
+    delay(10); // CPU entlasten
+    return;
   }
-  else {
-    if (enabled==true){
-      Serial.println("Messung beendet");
-      enabled = false;
-    }
-    digitalWrite(Status_Led, LOW);
+
+  // --- Messung läuft ---
+  mpu1.getAcceleration(&ax1, &ay1, &az1);
+  mpu2.getAcceleration(&ax2, &ay2, &az2);
+
+  t = micros();
+
+  float accx1 = ax1 * ACC_SCALE;
+  float accy1 = ay1 * ACC_SCALE;
+  float accz1 = az1 * ACC_SCALE;
+
+  float accx2 = ax2 * ACC_SCALE;
+  float accy2 = ay2 * ACC_SCALE;
+  float accz2 = az2 * ACC_SCALE;
+
+  String line;
+  line.reserve(128);
+  line += String(t);
+  line += ",";
+  line += String(accx1, 5);
+  line += ",";
+  line += String(accy1, 5);
+  line += ",";
+  line += String(accz1, 5);
+  line += ",";
+  line += String(accx2, 5);
+  line += ",";
+  line += String(accy2, 5);
+  line += ",";
+  line += String(accz2, 5);
+
+  File data = SD.open("/Data.csv", FILE_APPEND);
+  if (data) {
+    data.println(line);
+    data.close();
+  } else {
+    Serial.println("Fehler: Data.csv konnte nicht geöffnet werden");
   }
+
 
   /*
   dt = t - last_time;
