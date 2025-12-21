@@ -186,7 +186,7 @@ void loop() {
   line += ",";
   line += String(accz2, 5);
 
-  File data = SD.open("/Data.csv", FILE_APPEND);
+  File data = SD.open(filename, FILE_APPEND);
   if (data) {
     data.println(line);
     data.close();
