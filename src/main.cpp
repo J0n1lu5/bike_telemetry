@@ -4,6 +4,7 @@
 #include <math.h>
 #include <SD.h>
 #include <SPI.h>
+#include <string>
 
 MPU6050 mpu1(0x68);
 MPU6050 mpu2(0x69);
@@ -28,9 +29,10 @@ unsigned int  dt = 0;
   int16_t ax1, ay1, az1;
   int16_t ax2, ay2, az2;
   float baseline[3] = {0};
-  bool enabled = false;
+  bool new_record = true;
   bool measuring = false;
   bool stateChange = false;
+  String filename = "";
 
 // velocity
 float dist = 0;
@@ -141,6 +143,19 @@ void loop() {
     return;
   }
 
+  if (new_record) {
+    filename = String(micros());
+    filename = "/Data" + filename + ".csv";
+    File Data = SD.open(filename, FILE_WRITE); 
+    
+    if (Data) {
+      Data.println("timestamp_ms,x1,y1,z1,x2,y2,z2"); 
+      Data.close();
+  }
+
+    new_record = false;
+  }
+
   // --- Messung läuft ---
   mpu1.getAcceleration(&ax1, &ay1, &az1);
   mpu2.getAcceleration(&ax2, &ay2, &az2);
@@ -178,51 +193,6 @@ void loop() {
   } else {
     Serial.println("Fehler: Data.csv konnte nicht geöffnet werden");
   }
-
-
-  /*
-  dt = t - last_time;
-  last_time = t;
-
-  //acceleration in m/s^2
-  float accx1 = ax1 * ACC_SCALE;
-  float accy1 = ay1 * ACC_SCALE;
-  float accz1 = az1 * ACC_SCALE;
-
-  float accx2 = ax2 * ACC_SCALE;
-  float accy2 = ay2 * ACC_SCALE;
-  float accz2 = az2 * ACC_SCALE;
-
-
-
-  //relative accelaration
-  float accx = accx1 - accx2;
-  float accy = accy1 - accy2;
-  float accz = accz1 - accz2;
-  
-  
-  //print sensor data
-  Serial.print("Beschleunigung X: "); Serial.print(accx1);
-  Serial.print(" | Y: "); Serial.print(accy1);
-  Serial.print(" | Z: "); Serial.println(accz1);
-  
-
-
-// eleminate baseline noise  
- if (digitalRead(13) == LOW){
-  baseline[0] = accx;
-  baseline[1] = accy;
-  baseline[2] = accz;
- }
-
-  //calculating distance
- 
-  dist = calc_dist(accx, accy, accz, dt, baseline);
-  Serial.print("Distance:");
-  Serial.print(dist,6);
-  Serial.print("\n");
-
-  */
 
   
 }
