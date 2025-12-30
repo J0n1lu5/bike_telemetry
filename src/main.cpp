@@ -140,19 +140,30 @@ void loop() {
 
   if (!measuring) {
     delay(10); // CPU entlasten
+    new_record = true;
     return;
   }
 
   if (new_record) {
-    filename = String(micros());
-    filename = "/Data" + filename + ".csv";
+    
+    // neue Datei für Messung erstellen
+    for (int i = 1; i <= 500; i++) {
+      
+      filename = "/run" + String(i) + ".csv";
+      if (!SD.exists(filename)) {
+        break;
+      }
+        
+    
+    }
+    
     File Data = SD.open(filename, FILE_WRITE); 
     
     if (Data) {
       Data.println("timestamp_ms,x1,y1,z1,x2,y2,z2"); 
       Data.close();
-  }
-
+    }
+    Serial.println("Neue Messdatei: " + filename);
     new_record = false;
   }
 
